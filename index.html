@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MBTI 성격유형 검사 (GS형)</title>
+  <style>
+    :root{
+      --bg:#0f1115; --card:#151a22; --text:#e9edf1; --muted:#b9c0ca; --line:#2a3342;
+      --accent:#e9edf1;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+      background:var(--bg); color:var(--text);
+    }
+    .wrap{max-width:980px; margin:0 auto; padding:18px}
+    .title{font-size:22px; font-weight:800; margin:0}
+    .sub{color:var(--muted); margin:6px 0 0}
+    .card{
+      background:var(--card); border-radius:16px; padding:18px; margin-top:14px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    button{
+      border:0; border-radius:12px; padding:10px 14px; font-weight:700;
+      background:var(--accent); color:#111; cursor:pointer;
+    }
+    button.secondary{background:transparent; color:var(--text); border:1px solid var(--line)}
+    button:disabled{opacity:.45; cursor:not-allowed}
+    .pill{display:inline-block; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px}
+    .qstem{color:var(--text); font-weight:700; margin:10px 0 14px}
+    .opt{margin:10px 0; color:#d7dde6; line-height:1.45}
+    .opt b{color:var(--text)}
+    .hr{height:1px; background:var(--line); margin:14px 0}
+    canvas{width:100%; height:300px; display:block}
+    .small{color:var(--muted); font-size:13px; white-space:pre-line}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="title">MBTI 성격유형 검사 (GS형) - 웹앱</h1>
+    <div class="sub">문항 1개씩 진행 → 원점수 합산(남/여 T/F 분리) → 환산점수 → MBTI + 그래프</div>
+
+    <div id="app" class="card"></div>
+  </div>
+
+<script>
+/** =========================
+ *  1) 94문항
+ * ========================= */
+const QUESTIONS = [
+  [1,"나는 대체로","다른 사람들과 쉽게 어울리는 사람이다.","조용하고 말이 없는 편이다.",null],
+  [2,"만약 자신이 교사라면","실제적인 사실을 다루는 과목들을 가르치고 싶다.","이론적인 과목을 가르치고 싶다.",null],
+  [3,"나는","감정을 이성보다 더 자주 내세우는 편이다.","이성을 감정보다 더 자주 내세우는 편이다.",null],
+  [4,"하루 종일 어디를 다녀오고 싶을 때, 나는","언제 무엇을 할 것인가를 계획하는 편이다.","별 계획 없이 훌쩍 떠나는 편이다.",null],
+  [5,"나는 여러 사람들과 함께 있을 때, 일반적으로","여러 사람들 사이에 끼어 함께 대화를 나누는 편이다.","한번에 한 사람씩 대화를 나누는 편이다.",null],
+  [6,"자신은 평소에 어떤형의 사람들과 잘 어울립니까?","상상력이 풍부한 사람","현실 감각이 있는 사람",null],
+  [7,"자신은 어떤 것이 더 좋은 칭찬이라고 생각합니까?","솔직하고 감정적인 사람으로 불리는 것","꾸준하고 합리적인 사람으로 불리는 것",null],
+  [8,"나는","모임이나 파티 등을 미리 여유 있게 계획하는 것을 원하는 편이다.","그때 상황에 따라 재미있어 보이는 것을 할 수 있도록 별 계획 없이 자유스러운 것을 원하는 편이다.",null],
+  [9,"나는 사람들이 많은 그룹 내에서","주로 내가 다른 사람을 소개하는 편이다.","주로 다른 사람이 나를 소개하는 편이다.",null],
+  [10,"자신이 어느 쪽으로 인정받기를 더 원하십니까?","실제적이고 현실감각이 있는 사람.","재능과 창의력이 있는 사람.",null],
+  [11,"나는 평소에","논리보다는 감상(센티멘트)를 더 중요시하는 편이다.","감상(센티멘트)보다는 논리를 더 중요시하는 편이다.",null],
+  [12,"내가 일을 보다 성공적으로 처리하는 경우는","기대치 않은 일을 다루거나 일을 신속하게 처리해야 할 경우이다.","치밀하게 짜여진 계획에 따라 일을 처리할 경우이다.",null],
+  [13,"나는","소수의 사람들과 깊은 우정을 맺는 편이다.","다양한 사람들과 폭 넓은 우정을 맺는 편이다.",null],
+  [14,"자신은 어느 형의 사람을 더 우러러 봅니까?","적당히 보수적이어서 대체로 남에게 자신을 드러내지 않는 사람.","독창적이고 개성적이어서 자신이 드러나거나 말거나 별로 신경을 쓰지 않는 사람.",null],
+  [15,"자신은 어느 쪽이 더 형편없는 결점이라고 느낍니까?","동점심이 없는 면","비합리적인 면",null],
+  [16,"나에게 있어서 짜여진 시간표를 따르는 일은","맘에 든다.","답답하게 느껴진다.",null],
+  [17,"나는 친구들 사이에서","소식이나 소문을 제일 늦게 얻어듣는 편이다.","많은 사람들에 대한 소식이나 소문에 밝은 편이다.",null],
+  [18,"내가 친구로 사귀고 싶은 사람은","언제나 새로운 아이디어를 자아내는 사람.","현실감각이 있는 사람.",null],
+  [19,"자신은 어떤 형의 사람 아래서 일하는 것을 더 좋아합니까?","항상 친절한 사람.","언제나 공정한 사람.",null],
+  [20,"주말에 마쳐야 되는 일의 목록을 작성해야 한다는 생각은, 나에게 있어서","호감이 간다.","별로 마음에 내키지 않는다.","생각하면 우울해진다."],
+  [21,"내가 대화를 나누어야 한다면,","누구하고나 쉽게 얘기를 나누는 편이다.","어떤 일정한 사람들이나, 혹은 어떤 상황이 되었을 때 더 쉽게 얘기를 나누는 편이다.",null],
+  [22,"나는 취미로 독서를 할 때","기묘하거나 독창적인 작가의 표현을 즐기는 편이다.","의도한 바를 정확히 표현하는 작가를 좋아하는 편이다.",null],
+  [23,"자신은 어느 쪽이 더 형편없는 결점이라고 느낍니까?","지나친 온정을 보이는 것","적당한 온정을 보이지 않는 것",null],
+  [24,"나는 일상생활에서","시간을 다투는 비상상태에서 일하는 것을 즐기는 편이다.","시간의 압박을 받으면서 일하는 것을 아주 싫어하는 편이다.","시간의 압박을 피하기 위하여 대체로 미리 계획을 짜는 편이다."],
+  [25,"나를 처음 만나는 사람들이, 나의 관심이 무엇인가를","만나자마자 바로 아는 편이다.","나와 깊이 알고 난 후에 라야 아는 편이다.",null],
+  [26,"대부분의 사람들이 일상적으로 처리하는 일을 내가 하게될 때","일반적인 관습을 따라 처리하는 것을 더 좋아한다.","독창적인 처리방법을 생각해 내는 것을 더 좋아한다.",null],
+  [27,"자신은 어느 쪽에 더 마음을 씁니까?","사람들의 감정을 존중하는 일.","사람들의 권리를 보호하는 일.",null],
+  [28,"나는 어떤 특별한 일을 처리할 때","시작하기 전에 미리 조심스럽게 계획을 세우는 편이다.","일을 처리 해 나가면서 상황에 따라 필요한 대책을 세우는 편이다.",null],
+  [29,"나는 평소에","자신의 감정과 느낌을 자유스러이 표현하는 편이다.","감정과 느낌을 표현하기보다는 자신 안에 묻어두는 편이다.",null],
+  [30,"나의 생활 양식은","독창적인 편이다.","관례적인 편이다.",null],
+  [31,"","유순한","강건한",null],
+  [32,"어떤 일을 언제 할 것이라는 계획이 미리미리 짜여졌을 때 나는","그것에 맞추어서 다른 계획을 세울 수 있어 좋다고 느끼는 편이다.","일정에 메이는 것 때문에 싫은 편이다.",null],
+  [33,"나는 일반적으로 어떤 일에 대하여, 다른 사람보다","더 열성적인 편이다.","덜 열성적인 편이다.",null],
+  [34,"나의 생각에 더 좋은 칭찬이라고 생각되는 것은?","선견지명을 가졌다고 말해주는 것이다.","상식이 있는 사람이라고 말해 주는 것이다.",null],
+  [35,"","생각함","느낌",null],
+  [36,"나는","마지막 순간에 가서 일을 처리하기를 좋아한다.","마지막 순간에 가서 일을 처리하는 것이 불안하고 성미에 맞지 않는 편이다.",null],
+  [37,"나는 친목회나 파티 석상에서","때로 지루하게 느낀다.","언제든지 재미있다.",null],
+  [38,"자신은 어느 쪽이 더 중요하다고 봅니까?","어떤 상황이 안고 있는 가능성을 보는 일.","있는 그대로의 사실에 실제적으로 적응하는 일.",null],
+  [39,"","납득시킴","감동시킴",null],
+  [40,"나는 평상적인 하루의 일과를 알고 있는 것이","일상적인 일을 처리하는데 편리하다고 생각한다.","필요하다고는 생각하나 그것을 매일 따르는 것이 고통스럽다.",null],
+  [41,"나는 일반적으로 새로운 유행이 시작될 때","앞장서서 시도해보는 축의 한 사람이다.","별 관심이 없는 편이다.",null],
+  [42,"나는","선악을 위해서 이미 만들어진 기존체제방식을 지지하는 편이다.","기존 체제방식에 무엇이 잘못되어 왔는지를 분석하고 해결되지 않은 문제에 도전하는 편이다.",null],
+  [43,"","분석하다.","공감하다.",null],
+  [44,"내가 처리해야 될 사소한 일이나 구입해야 할 물건이 생각에 떠올랐을 때","자주 잊고 있다가 나중에야 기억하는 편이다.","기억하기 위해서 메모지에 적어 두는 편이다.","그때그때 즉시 처리하는 편이다."],
+  [45,"나는","다른 사람들이 쉽게 사귈 수 있는 편이다.","다른 사람들이 쉽게 사귈 수 있는 편이 아니다.",null],
+  [46,"","현실","이념",null],
+  [47,"","정의","자비",null],
+  [48,"나에게 적응하기 더 어려운 일은","틀에 박힌 일상적인 일","계속적인 변화",null],
+  [49,"나는 대화 도중에 당혹한 상황에 처했을 때","대화의 주제를 바꾼다.","농담으로 돌린다.","며칠 후에야 그때 무슨 얘기를 했어야 되었다고 생각한다."],
+  [50,"","사실적인 진술","추상적인 개념",null],
+  [51,"","측은지심","선견지명",null],
+  [52,"일주일 안에 마무리지어야 할 큰일을 시작할 때","시간을 내어 일의 목록을 작성하고 그 처리 순서를 정한다.","그냥 뛰어들어 시작한다.",null],
+  [53,"나를 가까이 아는 사람들은","대부분의 일에 있어서 내가 어떻게 느끼는 가를 잘 아는 편이다.","내가 어떻게 느끼는 가를 설명했을 때만 아는 편이다.",null],
+  [54,"","이론","확신",null],
+  [55,"","혜택","축복",null],
+  [56,"나는 일을 처리하는 데 있어서","미리 시작해서 여유 있게 마무리하는 편이다.","막바지에 가서 서둘러 끝내는 편이다.",null],
+  [57,"나는 파티 석상에서","파티가 진행되도록 돕는 일을 좋아한다.","사람들을 자기들 나름대로 즐기도록 두는 일을 좋아한다.",null],
+  [58,"","문자그대로","비유적으로",null],
+  [59,"","결심","헌신",null],
+  [60,"내가 만약 어느 일요일 아침에 그날 무엇을 할 것이냐고 질문을 받았다면 그 순간에","무엇을 할 것인가를 술술 얘기해 줄 수 있을 것이다.","실제 할 수 있는 일보다 거의 두 배나 될 정도의 계획을 나열할 것이다.","기다렸다가 그날 지나보아야 무엇을 할지 알 수 있다고 말할 것이다."],
+  [61,"","기운찬","차분한",null],
+  [62,"","상상적인","사실적인",null],
+  [63,"","굳건한 의지","따뜻한 마음",null],
+  [64,"나에게 있어서 일상적인 일은","쉽고 편안하다.","지루하다.",null],
+  [65,"","말이 별로 없음","말로 쉽게 표현함",null],
+  [66,"","제작하다.","창작하다.",null],
+  [67,"","중재자","심판관",null],
+  [68,"","계획","무계획",null],
+  [69,"","침착한","발랄한",null],
+  [70,"","재치 있는","흥미진진한",null],
+  [71,"","부드러움","강함",null],
+  [72,"","체계적","자발적",null],
+  [73,"","말하기","쓰기",null],
+  [74,"","제작","설계",null],
+  [75,"","용서하다","참아주다",null],
+  [76,"","계획에 따른","상황에 다른",null],
+  [77,"","사교적인","초연한",null],
+  [78,"","구체적인","추상적인",null],
+  [79,"","누구를","무엇을",null],
+  [80,"","충동","결심",null],
+  [81,"","파티","결심",null],
+  [82,"","건설하다.","발명하다",null],
+  [83,"","무비판적인","비판적인",null],
+  [84,"","시간적으로 정확한","유유자적한",null],
+  [85,"","초석","귀감",null],
+  [86,"","조심스러이 대하는","허물없이 대하는",null],
+  [87,"","변화하는","영구적인",null],
+  [88,"","이론","경험",null],
+  [89,"","동의하다","토론하다",null],
+  [90,"","규칙적인","느긋한",null],
+  [91,"","표식","상징",null],
+  [92,"","신속한","신중한",null],
+  [93,"","수용하다.","변경하다.",null],
+  [94,"","알려진","미지의",null],
+];
+
+/** =========================
+ *  2) 점수표 (네가 준 그대로)
+ * ========================= */
+const EI_TEXT = `
+1,E(2),I(2),
+5,E(1),I(2),
+9,E(2),I(2),
+13,I(2),E(2),
+17,I(1),E(2),
+21,E(2),I(2),
+25,E(1),I(1),
+29,E(1),I(0),
+33,E(1),I(1),
+37,E(1),I(2),
+41,E(0),I(2),
+45,E(1),I(2),
+49,E(0),I(1),I(2)
+53,E(1),I(1),
+57,E(1),I(2),
+61,E(1),I(2),
+65,I(1),E(0),
+69,I(1),E(1),
+73,E(0),I(1),
+77,E(1),I(1),
+81,E(1),I(0),
+`;
+
+const SN_TEXT = `
+2,S(2),N(2)
+6,S(2),N(1)
+10,S(2),N(2)
+14,S(1),N(2)
+18,N(1),S(2)
+22,S(0),N(1)
+26,S(1),N(1)
+30,S(0),N(1)
+34,S(2),N(1)
+38,S(0),N(1)
+42,S(2),N(0)
+46,S(2),N(1)
+50,S(2),N(1)
+54,S(2),N(1)
+58,S(1),N(1)
+62,S(0),N(2)
+66,S(2),N(0)
+70,S(2),N(0)
+74,S(1),N(0)
+78,S(1),N(2)
+82,S(2),N(1)
+85,S(0),N(2)
+88,S(2),N(0)
+91,S(1),N(0)
+93,S(1),N(0)
+94,S(1),N(1)
+`;
+
+const JP_TEXT = `
+4,J(2),P(2),
+8,J(2),P(1),
+12,J(1),P(1),
+16,J(2),P(2),
+20,J(1),P(1),P(1)
+24,J(1),P(0),P(1)
+28,J(1),P(2),
+32,J(1),P(1),
+36,J(1),P(0),
+40,J(0),P(2),
+44,J(1),P(1),P(0)
+48,J(1),P(1),
+52,J(2),P(1),
+56,J(0),P(1),
+60,J(0),P(1),P(1)
+64,J(1),P(0),
+68,J(2),P(2),
+72,J(2),P(2),
+76,J(2),P(2),
+80,J(2),P(1),
+84,J(1),P(1),
+87,J(0),P(1),
+90,J(2),P(1),
+92,J(1),P(0),
+`;
+
+const TF_TEXT = `
+3,남,F(1),T(1)
+3,여,F(2),T(2)
+7,남,F(1),T(2)
+7,여,F(1),T(2)
+11,남,F(2),T(2)
+11,여,F(2),T(2)
+15,남,F(1),T(0)
+15,여,F(2),T(0)
+19,남,F(1),T(0)
+19,여,F(2),T(0)
+23,남,T(1),F(0)
+23,여,T(1),F(0)
+27,남,F(0),T(2)
+27,여,F(0),T(1)
+31,남,F(1),T(2)
+31,여,F(0),T(2)
+35,남,T(2),F(2)
+35,여,T(2),F(1)
+39,남,T(2),F(2)
+39,여,T(2),F(1)
+43,남,F(2),T(2)
+43,여,F(1),T(2)
+47,남,T(1),F(2)
+47,여,T(1),F(2)
+51,남,F(1),T(2)
+51,여,F(1),T(2)
+55,남,T(1),F(1)
+55,여,T(1),F(1)
+59,남,T(1),F(1)
+59,여,T(1),F(2)
+63,남,T(2),F(0)
+63,여,T(2),F(0)
+67,남,F(0),T(2)
+67,여,F(0),T(2)
+71,남,F(0),T(2)
+71,여,F(0),T(2)
+75,남,F(0),T(2)
+75,여,F(0),T(2)
+79,남,F(0),T(1)
+79,여,F(0),T(1)
+83,남,F(1),T(1)
+83,여,F(1),T(1)
+86,남,T(2),F(0)
+86,여,T(2),F(0)
+89,남,F(0),T(0)
+89,여,F(1),T(0)
+`;
+
+const TIE_PREF = { EI:"E", SN:"N", TF:"F", JP:"P" };
+
+function parseTraitScore(tok){
+  tok = (tok||"").trim();
+  if(!tok) return null;
+  const trait = tok[0];
+  const n = parseInt(tok.slice(tok.indexOf("(")+1, tok.indexOf(")")),10);
+  return [trait,n];
+}
+
+function buildScore(){
+  const score = {};
+
+  function parseAxis(text, axis){
+    text.trim().split("\n").forEach(raw=>{
+      const line = raw.trim();
+      if(!line) return;
+      const parts = line.split(",").map(s=>s.trim());
+      const q = parseInt(parts[0],10);
+      const A = parseTraitScore(parts[1]);
+      const B = parseTraitScore(parts[2]);
+      const C = (parts[3] && parts[3].trim()) ? parseTraitScore(parts[3]) : null;
+      score[q] = {axis, A, B};
+      if(C) score[q].C = C;
+    });
+  }
+
+  parseAxis(EI_TEXT,"EI");
+  parseAxis(SN_TEXT,"SN");
+  parseAxis(JP_TEXT,"JP");
+
+  // TF 성별 점수
+  const tfMap = {};
+  TF_TEXT.trim().split("\n").forEach(raw=>{
+    const parts = raw.split(",").map(s=>s.trim());
+    const q = parseInt(parts[0],10);
+    const g = parts[1]; // 남/여
+    const A = parseTraitScore(parts[2]);
+    const B = parseTraitScore(parts[3]);
+    tfMap[q] ??= {};
+    tfMap[q][g] = {A,B};
+  });
+
+  Object.keys(tfMap).forEach(k=>{
+    const q = parseInt(k,10);
+    const m = tfMap[q]["남"];
+    const f = tfMap[q]["여"];
+    score[q] = {
+      axis:"TF",
+      A:[m.A[0], m.A[1], f.A[1]], // trait, malePts, femalePts
+      B:[m.B[0], m.B[1], f.B[1]]
+    };
+  });
+
+  return score;
+}
+
+const SCORE = buildScore();
+const ALLQ = new Set(Array.from({length:94},(_,i)=>i+1));
+const MISSING = Array.from(ALLQ).filter(q=>!SCORE[q]).sort((a,b)=>a-b);
+
+/** 환산 최고점(스케일용) */
+const MAX_CONV = { E:49, I:55, S:67, N:51, J:55, P:61 };
+
+function convertAxis(axisKey, left, right, leftRaw, rightRaw){
+  if(leftRaw === rightRaw){
+    const winner = TIE_PREF[axisKey];
+    const loser = (winner===left)? right : left;
+    return {winner, wScore:1, loser, lScore:0};
+  }
+  const winner = (leftRaw>rightRaw)? left : right;
+  const loser = (winner===left)? right : left;
+  const diff = Math.abs(leftRaw-rightRaw);
+  const conv = (["I","S","T","J"].includes(winner)) ? (diff*2 - 1) : (diff*2 + 1);
+  return {winner, wScore:conv, loser, lScore:0};
+}
+
+function prefLevel(letter, score){
+  if(score<=9) return "낮은 선호도";
+  if(score>=11 && score<=19) return "중간 선호도";
+  if(score>=40) return "아주 뚜렷한 선호도";
+  if(score>=21 && score<=39){
+    if(letter==="F") return (score<=29) ? "뚜렷한 선호도" : "아주 뚜렷한 선호도";
+    return "뚜렷한 선호도";
+  }
+  return "선호도";
+}
+
+/** =========================
+ *  3) UI 상태
+ * ========================= */
+const state = {
+  step:"gender", // gender | quiz | result
+  gender:null,   // "M"/"F"
+  idx:0,
+  answers:{}     // qid -> "A"/"B"/"C"
+};
+
+const app = document.getElementById("app");
+
+function render(){
+  if(state.step==="gender") return renderGender();
+  if(state.step==="quiz") return renderQuiz();
+  return renderResult();
+}
+
+function renderGender(){
+  app.innerHTML = `
+    <div class="row">
+      <span class="pill">T/F는 성별 기준이 다름</span>
+    </div>
+    <h2 style="margin:10px 0 6px">성별 선택</h2>
+    <div class="sub">남/여를 선택하면 94문항이 1개씩 진행됩니다.</div>
+    ${MISSING.length ? `<div class="hr"></div><div class="small">⚠ 점수표 누락 문항: ${MISSING.join(", ")}</div>` : ""}
+    <div class="hr"></div>
+    <div class="row">
+      <button onclick="start('M')">남</button>
+      <button onclick="start('F')">여</button>
+    </div>
+  `;
+}
+
+function start(g){
+  state.gender = g;
+  state.idx = 0;
+  state.answers = {};
+  state.step = "quiz";
+  render();
+}
+
+function renderQuiz(){
+  const [qid, stem, A, B, C] = QUESTIONS[state.idx];
+  const prog = `${state.idx+1} / 94`;
+  app.innerHTML = `
+    <div class="row">
+      <span class="pill">${prog}</span>
+      <span class="pill">문항 ${qid}</span>
+      <span class="pill">성별: ${state.gender==="M"?"남":"여"}</span>
+    </div>
+    <div class="qstem">${stem || ""}</div>
+    <div class="opt"><b>(A)</b> ${A}</div>
+    <div class="opt"><b>(B)</b> ${B}</div>
+    ${C ? `<div class="opt"><b>(C)</b> ${C}</div>` : ""}
+    <div class="hr"></div>
+    <div class="row">
+      <button onclick="choose('A')">A 선택</button>
+      <button onclick="choose('B')">B 선택</button>
+      ${C ? `<button onclick="choose('C')">C 선택</button>` : ""}
+      <button class="secondary" onclick="prev()" ${state.idx===0?"disabled":""}>이전</button>
+      <button class="secondary" onclick="resetAll()">처음으로</button>
+    </div>
+  `;
+}
+
+function choose(ch){
+  const [qid] = QUESTIONS[state.idx];
+  state.answers[qid] = ch;
+  state.idx += 1;
+  if(state.idx >= QUESTIONS.length){
+    state.step = "result";
+  }
+  render();
+}
+
+function prev(){
+  if(state.idx>0){
+    state.idx -= 1;
+    render();
+  }
+}
+
+function resetAll(){
+  state.step="gender";
+  state.gender=null;
+  state.idx=0;
+  state.answers={};
+  render();
+}
+
+/** =========================
+ *  4) 채점
+ * ========================= */
+function computeRaw(){
+  if(Object.keys(state.answers).length !== 94) return {err:`응답 수가 94개가 아닙니다: ${Object.keys(state.answers).length}`};
+  if(MISSING.length) return {err:`점수표 누락 문항: ${MISSING.join(", ")}`};
+
+  const raw = {E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};
+
+  for(const [qidStr, ans] of Object.entries(state.answers)){
+    const qid = parseInt(qidStr,10);
+    const item = SCORE[qid];
+    if(!item) continue;
+
+    if(item.axis==="TF"){
+      const [trait, malePts, femalePts] = item[ans];
+      raw[trait] += (state.gender==="M") ? malePts : femalePts;
+    }else{
+      const [trait, pts] = item[ans];
+      raw[trait] += pts;
+    }
+  }
+  return {raw};
+}
+
+function computeConvertedAndType(raw){
+  const axes = [
+    ["EI","E","I"],
+    ["SN","S","N"],
+    ["TF","T","F"],
+    ["JP","J","P"],
+  ];
+  const converted = {E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};
+  const winners = {};
+
+  for(const [axisKey, left, right] of axes){
+    const r = convertAxis(axisKey, left, right, raw[left], raw[right]);
+    winners[axisKey] = r.winner;
+    converted[r.winner] = r.wScore;
+    converted[r.loser]  = 0;
+  }
+
+  const mbti = winners.EI + winners.SN + winners.TF + winners.JP;
+  return {mbti, converted, winners};
+}
+
+/** =========================
+ *  5) 그래프(패자 0표시 제거: 승자만 표시)
+ * ========================= */
+function drawProfile(canvas, converted){
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width = canvas.clientWidth * devicePixelRatio;
+  const H = canvas.height = 300 * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  const w = canvas.clientWidth;
+  const h = 300;
+
+  ctx.clearRect(0,0,w,h);
+
+  const leftLabelW = 110, rightLabelW = 110;
+  const barAreaW = w - leftLabelW - rightLabelW - 40;
+  const halfW = barAreaW/2;
+  const cx = leftLabelW + 20 + halfW;
+
+  const top = 20, rowH = 65, barH = 18;
+
+  // center line
+  ctx.strokeStyle = "#3a465a";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, top-5); ctx.lineTo(cx, top+rowH*4-15); ctx.stroke();
+
+  // dashed guides
+  ctx.strokeStyle = "#2a3342";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2,6]);
+  for(let i=0;i<4;i++){
+    const y = top + i*rowH + 22;
+    ctx.beginPath(); ctx.moveTo(leftLabelW+20, y); ctx.lineTo(leftLabelW+20+barAreaW, y); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // ticks (0~70)
+  const tickY = top + rowH*4 + 5;
+  ctx.strokeStyle = "#2a3342";
+  ctx.beginPath(); ctx.moveTo(leftLabelW+20, tickY); ctx.lineTo(leftLabelW+20+barAreaW, tickY); ctx.stroke();
+
+  ctx.fillStyle = "#6f7b8a";
+  ctx.font = "12px 'Malgun Gothic', system-ui";
+  for(let t=0;t<=70;t+=10){
+    const xL = cx - (t/70)*halfW;
+    ctx.beginPath(); ctx.moveTo(xL, tickY); ctx.lineTo(xL, tickY+6); ctx.stroke();
+    ctx.fillText(String(t), xL-6, tickY+22);
+    const xR = cx + (t/70)*halfW;
+    ctx.beginPath(); ctx.moveTo(xR, tickY); ctx.lineTo(xR, tickY+6); ctx.stroke();
+    if(t!==0) ctx.fillText(String(t), xR-6, tickY+22);
+  }
+
+  const tfMax = (state.gender==="M")
+    ? {T:63, F:39}
+    : {T:65, F:43};
+
+  const maxMap = {...MAX_CONV, ...tfMax};
+
+  function row(i, L, Lname, R, Rname){
+    const y = top + i*rowH + 22;
+
+    // labels
+    ctx.fillStyle = "#e9edf1";
+    ctx.font = "bold 13px 'Malgun Gothic', system-ui";
+    ctx.fillText(`${Lname} ${L}`, 10, y+4);
+    const rightText = `${R} ${Rname}`;
+    const tw = ctx.measureText(rightText).width;
+    ctx.fillText(rightText, w-10-tw, y+4);
+
+    const lScore = converted[L];
+    const rScore = converted[R];
+
+    const boxW=40, boxH=20;
+
+    ctx.fillStyle = "#e9edf1";
+    ctx.strokeStyle = "#e9edf1";
+    ctx.lineWidth = 1;
+
+    // 승자만 표시(패자=0은 아무것도 안 그림)
+    if(lScore>0){
+      const lmax = maxMap[L];
+      const lx = cx - (Math.min(lScore,lmax)/lmax)*halfW;
+      ctx.fillRect(lx, y-barH/2, cx-lx, barH);
+
+      // score box
+      ctx.strokeRect(lx-boxW, y-boxH/2, boxW, boxH);
+      ctx.fillStyle = "#e9edf1";
+      ctx.font = "bold 12px 'Malgun Gothic', system-ui";
+      ctx.fillText(String(lScore), lx-boxW/2-6, y+4);
+      ctx.fillStyle = "#e9edf1";
+    }
+
+    if(rScore>0){
+      const rmax = maxMap[R];
+      const rx = cx + (Math.min(rScore,rmax)/rmax)*halfW;
+      ctx.fillRect(cx, y-barH/2, rx-cx, barH);
+
+      ctx.strokeRect(rx, y-boxH/2, boxW, boxH);
+      ctx.fillStyle = "#e9edf1";
+      ctx.font = "bold 12px 'Malgun Gothic', system-ui";
+      ctx.fillText(String(rScore), rx+boxW/2-6, y+4);
+      ctx.fillStyle = "#e9edf1";
+    }
+  }
+
+  row(0,"E","외향","I","내향");
+  row(1,"S","감각","N","직관");
+  row(2,"T","사고","F","감정");
+  row(3,"J","판단","P","인식");
+}
+
+function renderResult(){
+  const {raw, err} = computeRaw();
+  if(err){
+    app.innerHTML = `
+      <h2 style="margin:0 0 6px">결과 산출 실패</h2>
+      <div class="small">${err}</div>
+      <div class="hr"></div>
+      <button onclick="resetAll()">다시 하기</button>
+    `;
+    return;
+  }
+  const {mbti, converted, winners} = computeConvertedAndType(raw);
+
+  app.innerHTML = `
+    <div class="row">
+      <span class="pill">성별: ${state.gender==="M"?"남":"여"}</span>
+      <span class="pill">MBTI: ${mbti}</span>
+    </div>
+    <div class="hr"></div>
+    <canvas id="chart" aria-label="MBTI 프로파일 그래프"></canvas>
+    <div class="hr"></div>
+    <div class="small" id="summary"></div>
+    <div class="hr"></div>
+    <div class="row">
+      <button onclick="resetAll()">다시 하기</button>
+    </div>
+  `;
+
+  // summary (필요 없으면 이 블록 통째로 지워도 됨)
+  const lines = [];
+  function line(axisKey, L, R){
+    const w = winners[axisKey];
+    const s = converted[w];
+    const lvl = prefLevel(w, s);
+    return `${L}(${raw[L]}) / ${R}(${raw[R]})  →  ${w} 환산 ${s}점 (${lvl})`;
+  }
+  lines.push(line("EI","E","I"));
+  lines.push(line("SN","S","N"));
+  lines.push(line("TF","T","F"));
+  lines.push(line("JP","J","P"));
+
+  document.getElementById("summary").textContent = lines.join("\n");
+
+  const canvas = document.getElementById("chart");
+  drawProfile(canvas, converted);
+
+  // 리사이즈 대응
+  window.onresize = ()=>drawProfile(canvas, converted);
+}
+
+window.start = start;
+window.choose = choose;
+window.prev = prev;
+window.resetAll = resetAll;
+
+render();
+</script>
+</body>
+</html>
